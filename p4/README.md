@@ -49,9 +49,10 @@ The control room runs one venue at a time. The venue is chosen when `server.py` 
 - **Railway station (default):** `python server.py`, with `venue.json`.
 - **Stadium exit:** `VENUE=venue_stadium.json python server.py`. One zone, Gate A, covering the whole picture.
 
-To run the stadium footage, start the stadium server, then in a second terminal:
-
-    python live_feed.py --venue venue_stadium.json --camera cam1
+The footage starts by itself: each venue names its footage in its venue file, and the server plays
+it when the venue is chosen (the station's forecourt plays HT21-04; the stadium plays HT21-02 on
+Gate A). Its output goes to `footage.log`. To run it by hand instead, use
+`python live_feed.py --venue venue_stadium.json`.
 
 Gate A's count is the number of heads in the whole picture in each frame of the footage.
 The stadium picture is a public square in the HT21-02 footage, not a real stadium; use your own

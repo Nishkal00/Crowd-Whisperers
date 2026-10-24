@@ -1,6 +1,6 @@
 """Play a crowd video as a live camera feed, with the true count for each zone in every frame.
 
-    python live_feed.py                                       # HT21-02 on the station forecourt (cam4)
+    python live_feed.py                                       # HT21-04 on the station forecourt (cam4)
     python live_feed.py --venue venue_stadium.json --camera cam1   # the same footage on the stadium's three gates
     python live_feed.py --speed 2                             # twice real time
 
@@ -22,7 +22,7 @@ from poltergeist_client import Poltergeist
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-DEFAULT_SEQUENCE = os.path.join(ROOT, "HT21", "HT21", "train", "HT21-02")
+DEFAULT_SEQUENCE = os.path.join(ROOT, "HT21", "HT21", "train", "HT21-04")
 
 
 def read_heads(gt_path, width, height):
@@ -51,15 +51,24 @@ def inside(point, polygon):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--sequence", default=DEFAULT_SEQUENCE, help="an HT21 sequence folder")
+    ap.add_argument("--sequence", help="an HT21 sequence folder (default: the venue's footage)")
     ap.add_argument("--venue", default=os.path.join(HERE, "venue.json"), help="the venue whose zones to count")
     ap.add_argument("--server", default="http://localhost:8000")
-    ap.add_argument("--camera", default="cam4", help="the camera in the venue this footage is")
+    ap.add_argument("--camera", help="the camera in the venue this footage is (default: the venue's footage)")
     ap.add_argument("--zone", help="count only this zone (default: every zone of that camera)")
     ap.add_argument("--speed", type=float, default=1.0, help="1 = the footage's own frame rate")
     ap.add_argument("--width", type=int, default=960, help="send frames at this width to keep it light")
     ap.add_argument("--no-loop", action="store_true")
     args = ap.parse_args()
+
+    # a venue's own footage (venue file "footage") is used unless told otherwise
+    venue = json.load(open(args.venue, encoding="utf-8"))
+    footage = venue.get("footage", {})
+    sequence = args.sequence or footage.get("sequence") or DEFAULT_SEQUENCE
+    if not os.path.isabs(sequence):
+        sequence = os.path.join(ROOT, sequence)
+    args.sequence = sequence
+    args.camera = args.camera or footage.get("camera") or "cam4"
 
     ini = configparser.ConfigParser()
     ini.read(os.path.join(args.sequence, "seqinfo.ini"))
@@ -77,7 +86,6 @@ def main():
     if not available:
         raise SystemExit(f"No frames in {img_dir}")
 
-    venue = json.load(open(args.venue, encoding="utf-8"))
     zones = {zid: z for zid, z in venue["zones"].items()
              if z.get("camera") == args.camera and z.get("polygon") and (not args.zone or zid == args.zone)}
     if not zones:

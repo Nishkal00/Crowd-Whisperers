@@ -110,10 +110,34 @@ def main():
             fps = 25
 
     cam_clients = {}  # one sender per derived camera, e.g. cam2 and cam3
+    # the dashboard can be on another venue (the stadium's footage uses cam1 too): pause then,
+    # or the two pictures take turns on the same camera
+    import urllib.request
+    last_check, paused = 0, False
+
+    def venue_on_dashboard():
+        try:
+            with urllib.request.urlopen(args.server + "/api/state", timeout=2) as r:
+                return json.load(r).get("venue_key")
+        except OSError:
+            return None
     print(f"Simulating P1-P3 -> {args.server}  (Ctrl+C to stop)")
     start = time.time()
     last_zone_push = 0
     while True:
+        if time.time() - last_check >= 2:
+            last_check = time.time()
+            active = venue_on_dashboard()
+            if active not in (None, "station") and not paused:
+                print(f"Dashboard is on {active}: pausing the station simulator")
+            if active not in (None, "station"):
+                paused = True
+            elif paused:
+                print("Dashboard is back on the station: resuming")
+                paused = False
+        if paused:
+            time.sleep(0.5)
+            continue
         t = ((time.time() - start) * args.speed) % LOOP
         dens = {z: max(0.0, curve(p, t) + random.uniform(-0.08, 0.08)) for z, p in DENSITY.items()}
 

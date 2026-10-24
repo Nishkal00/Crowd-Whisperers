@@ -274,6 +274,32 @@ function statusWord(i) {
   return 'new';
 }
 
+/* the message choices for people at a zone, shared by the alert card and the send panel */
+const MSG_OPTIONS = [['crowd', 'Crowd is building: move to the exit'], ['crowd_stay', 'Crowd is building: wait where you are'],
+  ['calm', 'Stay calm and walk slowly'], ['make_way', 'Make way for the medical team'], ['tracks', 'Keep off the tracks']];
+
+/* a manual alert's card: message the people in its zone, noted on the alert */
+async function messagePeople(btn) {
+  const zone = btn.dataset.zone, id = btn.dataset.id;
+  const sel = document.querySelector(`[data-msg-for="${id}"]`);
+  const people = (S.state.subscribers.public_by_zone || {})[zone] || 0;
+  const name = S.venue.zones[zone]?.name || zone;
+  if (!confirm(`Send "${sel.selectedOptions[0].textContent}" to ${people} ${people === 1 ? 'person' : 'people'} at ${name} on Telegram?`)) return;
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/send', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ zone, template: sel.value, staff: false, public: true, incident: +id }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.detail || `the server said ${res.status}`);
+    btn.textContent = `Sent to ${body.public_sent} ${body.public_sent === 1 ? 'person' : 'people'}`;
+  } catch (e) {
+    btn.textContent = `Not sent: ${e.message}`;
+    btn.disabled = false;
+  }
+}
+
 function alertCard(i, st) {
   const taken = i.status === 'accepted';
   const steps = i.timeline.map(t => {
@@ -296,6 +322,11 @@ function alertCard(i, st) {
   if (i.status === 'dispatching' && cur) actions.push(`<button class="btn solid" data-act="accept" data-id="${i.id}" data-post="${esc(cur.id)}">Accept for ${esc(cur.name)}</button>`);
   if (i.status !== 'accepted') actions.push(`<button class="btn" data-act="next" data-id="${i.id}">${i.status === 'unanswered' ? 'Try the posts again' : 'Send to next post'}</button>`);
   actions.push(`<button class="btn ${taken ? 'solid' : 'quiet'}" data-act="resolve" data-id="${i.id}">Mark resolved</button>`);
+  if (i.type === 'manual') {
+    actions.push(`<span class="people-msg"><select data-msg-for="${i.id}" aria-label="Message to people">${MSG_OPTIONS
+      .map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join('')}</select>
+      <button class="btn" data-act="people" data-id="${i.id}" data-zone="${esc(i.zone)}">Message people in ${esc(i.zone_name)}</button></span>`);
+  }
 
   return `<article class="alert ${taken ? 'taken' : ''}">
     <div class="alert-head"><h3>${esc(i.label)} at ${esc(i.zone_name)}</h3><span class="age" data-since="${i.opened_at}"></span></div>
@@ -428,6 +459,7 @@ function bindUI() {
     if (f) { S.focus = +f.dataset.focus; S.cache.alerts = null; render(S.state); return; }
     const b = e.target.closest('[data-act]');
     if (!b) return;
+    if (b.dataset.act === 'people') { await messagePeople(b); return; }
     b.disabled = true;
     const body = b.dataset.post ? JSON.stringify({ post: b.dataset.post }) : '{}';
     await fetch(`/api/incidents/${b.dataset.id}/${b.dataset.act}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }).catch(() => {});

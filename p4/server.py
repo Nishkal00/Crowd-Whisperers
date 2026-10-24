@@ -4,10 +4,13 @@ Run:  python server.py          (then open http://localhost:8000)
 Demo: python simulate.py        (in a second terminal, fakes P1-P3)
 """
 import asyncio
+import atexit
 import io
 import json
 import os
 import socket
+import subprocess
+import sys
 import time
 from contextlib import asynccontextmanager
 
@@ -77,6 +80,31 @@ def on_incident(inc):
 engine.on_incident = on_incident
 
 
+# the footage for the current venue (live_feed.py), started and stopped with the venue
+FOOTAGE = {"proc": None}
+
+
+def stop_footage():
+    proc = FOOTAGE["proc"]
+    if proc and proc.poll() is None:
+        proc.terminate()
+    FOOTAGE["proc"] = None
+
+
+atexit.register(lambda: stop_footage())  # also when the server exits early, e.g. the port is taken
+
+
+def start_footage(venue_path, venue):
+    """Play the venue's own footage (its "footage" entry in its venue file), if it has one."""
+    stop_footage()
+    if not venue.get("footage"):
+        return
+    log = open(os.path.join(HERE, "footage.log"), "w", encoding="utf-8")
+    FOOTAGE["proc"] = subprocess.Popen([sys.executable, "-u", "live_feed.py", "--venue", venue_path],
+                                       cwd=HERE, stdout=log, stderr=subprocess.STDOUT)
+    print(f"Footage: {venue['footage']['sequence']} on {venue['footage']['camera']} (see footage.log)")
+
+
 def switch_venue(key):
     """Swap the whole control room to another venue. Alerts and frames from the old one are dropped."""
     global VENUE, VENUE_KEY, engine
@@ -89,6 +117,8 @@ def switch_venue(key):
     banshee.engine, banshee.venue = engine, VENUE
     banshee.posts = {p["id"]: p for p in VENUE.get("posts", [])}
     banshee.escalate_after = float(VENUE.get("escalate_after_s", 60))
+    stop_footage()
+    start_footage(path, VENUE)
     print(f"Venue: {VENUE.get('venue', key)}")
 
 
@@ -98,7 +128,9 @@ async def lifespan(app):
     print(f"\n  Control room:  http://localhost:{PORT}")
     print(f"  SOS QR sheet:  http://localhost:{PORT}/qr   (phones on the same Wi-Fi use {PUBLIC_URL})")
     print(f"  Telegram:      {banshee.status['detail'] or 'starting'}\n")
+    start_footage(VENUE_PATH, VENUE)
     yield
+    stop_footage()
     for t in tasks:
         t.cancel()
 
@@ -278,6 +310,9 @@ async def send_manual(payload: dict):
     result = {"ok": True, "public_sent": 0, "staff_incident": None}
     if to_people:
         result["public_sent"] = await banshee.broadcast_public(zone, texts)
+        if payload.get("incident") in engine.incidents:  # note it on the alert it came from
+            engine._log(engine.incidents[payload["incident"]], "note",
+                        f"Message sent on Telegram to {result['public_sent']} people at {VENUE['zones'][zone].get('name', zone)}")
     if to_staff:
         note = (payload.get("note") or "").strip()[:200] or "Sent from the control room"
         result["staff_incident"] = engine.open_incident("manual", zone, note=note, source="dashboard")["id"]

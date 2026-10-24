@@ -2,3 +2,4 @@ pa_cache/
 __pycache__/
 .env
 subscribers.json
+footage.log

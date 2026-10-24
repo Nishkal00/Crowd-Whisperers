@@ -365,5 +365,9 @@
       ],
       "telegram_chat_id": ""
     }
-  ]
+  ],
+  "footage": {
+    "sequence": "HT21/HT21/train/HT21-04",
+    "camera": "cam4"
+  }
 }
