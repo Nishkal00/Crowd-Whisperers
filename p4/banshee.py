@@ -253,6 +253,23 @@ class Banshee:
             self.engine._log(inc, "note", f"Crowd update sent on Telegram to {n} {'person' if n == 1 else 'people'} "
                                           f"at {inc['zone_name']}")
 
+    async def broadcast_public(self, zone, texts):
+        """Crowd update from the control room to everyone at this zone on Telegram. Returns how many got it."""
+        if not texts:
+            return 0
+        return await self._public_send(zone, lambda lang, zn: f"<b>{zn}</b>\n{html.escape(texts[lang])}")
+
+    def counts(self):
+        """How many people are subscribed, and how many of them are at each zone."""
+        subs = list(self.subscribers.values())
+        by_zone = {}
+        for s in subs:
+            if s.get("role") == "public" and s.get("zone"):
+                by_zone[s["zone"]] = by_zone.get(s["zone"], 0) + 1
+        return {"staff": sum(1 for s in subs if s.get("role") == "staff"),
+                "public": sum(1 for s in subs if s.get("role") == "public"),
+                "public_by_zone": by_zone}
+
     async def _send(self, cid, text, buttons=None):
         data = {"chat_id": cid, "parse_mode": "HTML", "text": text}
         if buttons is not None:

@@ -44,6 +44,7 @@ async function init() {
   $('#camName').textContent = (S.venue.cameras?.[S.camera]?.name) || S.camera;
   buildOverlay();
   buildMap();
+  buildSend();
   bindUI();
   startVideo();
   connect();
@@ -94,6 +95,9 @@ function render(st) {
   renderAlerts(st);
   renderMap(zones, st.incidents);
   renderPA(st.pa, st.voice);
+  renderSummary(st);
+  renderHeat(zones);
+  renderSend(st);
 
   const unk = $('#unknownZones');
   unk.hidden = !st.unknown_zones.length;
@@ -298,6 +302,7 @@ function buildMap() {
   const [x0, y0] = [Math.min(...xs) - pad, Math.min(...ys) - pad];
   const [w, h] = [Math.max(...xs) - x0 + pad + 30, Math.max(...ys) - y0 + pad];  // room for post names on the right
   map.setAttribute('viewBox', `${x0} ${y0} ${w} ${h}`);
+  S.mapBox = [x0, y0, w, h];
   for (const l of S.venue.map_lines || []) map.appendChild(svg('polyline', { class: 'mline', points: l.map(p => p.join(',')).join(' '), fill: 'none' }));
   for (const [id, z] of Object.entries(S.venue.zones)) {
     if (!z.map) continue;
@@ -415,6 +420,11 @@ function bindUI() {
     b.textContent = S.sound ? 'Sound on' : 'Turn on sound';
     if (S.sound) unlockAudio();
   };
+
+  for (const id of ['sendZone', 'sendTemplate', 'sendStaff', 'sendPeople']) {
+    $(`#${id}`).onchange = () => renderSend(S.state);
+  }
+  $('#sendBtn').onclick = sendManual;
 
   // drawing zones on the camera view
   const feed = $('#feed');
@@ -537,6 +547,168 @@ function onNewAlert(inc) {
     if (pa && pa.for === 'incident' && pa.ref === inc.id) { clearInterval(wait); playPA(pa.texts); }
     else if (++tries > 10) { clearInterval(wait); wail(); }
   }, 300);
+}
+
+/* ---------------- summary strip: the venue at a glance ---------------- */
+function renderSummary(st) {
+  const live = st.zones.filter(z => z.level !== 'stale' && z.level !== 'nodata');
+  const people = live.reduce((a, z) => a + (z.count || 0), 0);
+  const level = lvl => live.filter(z => z.level === lvl).length;
+  const name = id => S.venue.zones[id]?.name || id;
+  const hot = live.filter(z => z.density != null).sort((a, b) => b.density - a.density)[0];
+  const soon = live.filter(z => z.minutes_to_critical != null && z.level !== 'critical')
+    .sort((a, b) => a.minutes_to_critical - b.minutes_to_critical)[0];
+  const sub = st.subscribers || { staff: 0, public: 0 };
+  const cards = [
+    ['People counted', people.toLocaleString(), `in ${live.length} of ${st.zones.length} zones`],
+    ['Zones now', `${level('critical')} critical · ${level('warning')} warning`, `${level('safe')} safe`],
+    ['Most crowded', hot ? `${hot.density.toFixed(1)} /m²` : '–', hot ? name(hot.id) : 'no data yet'],
+    ['Next to turn critical', soon ? `${Math.ceil(soon.minutes_to_critical)} min` : 'none in sight',
+      soon ? name(soon.id) : 'no zone is rising fast'],
+    ['Subscribed on Telegram', `${sub.staff} staff · ${sub.public} people`, tgShort(st.telegram)],
+  ];
+  once('summary', JSON.stringify(cards), () => {
+    $('#summary').innerHTML = cards.map(([k, v, s]) =>
+      `<div class="stat"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span><span class="s">${esc(s)}</span></div>`).join('');
+  });
+}
+
+function tgShort(tg) {
+  return tg.state === 'connected' ? 'bot connected' : tg.state === 'starting' ? 'bot connecting' : 'bot not connected';
+}
+
+/* ---------------- live heatmap: density per zone, drawn over the venue map ---------------- */
+const HEAT_STOPS = [[0, [91, 209, 139]], [4, [255, 194, 61]], [6, [255, 90, 78]], [8, [255, 40, 40]]];
+function heatRGB(d) {
+  for (let i = 1; i < HEAT_STOPS.length; i++) {
+    const [x2, c2] = HEAT_STOPS[i];
+    const [x1, c1] = HEAT_STOPS[i - 1];
+    if (d <= x2) {
+      const f = Math.max(0, (d - x1) / (x2 - x1));
+      return c1.map((v, k) => v + (c2[k] - v) * f);
+    }
+  }
+  return HEAT_STOPS[HEAT_STOPS.length - 1][1];
+}
+
+function renderHeat(zones) {
+  if (!S.mapBox) return;
+  const cv = $('#heat');
+  const [x0, y0, w, h] = S.mapBox;
+  const dpr = window.devicePixelRatio || 1;
+  const W = Math.round(cv.clientWidth * dpr) || 640;
+  const H = Math.round(W * h / w);
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  const ctx = cv.getContext('2d');
+  const sx = W / w, sy = H / h;
+  ctx.fillStyle = '#1F1C1A';
+  ctx.fillRect(0, 0, W, H);
+
+  for (const [id, z] of Object.entries(S.venue.zones)) {
+    if (!z.map) continue;
+    const r = zones[id];
+    const xs = z.map.map(p => (p[0] - x0) * sx), ys = z.map.map(p => (p[1] - y0) * sy);
+    const L = Math.min(...xs), R = Math.max(...xs), T = Math.min(...ys), B = Math.max(...ys);
+    const cx = (L + R) / 2, cy = (T + B) / 2;
+    const live = r && r.density != null && r.level !== 'stale';
+    const [cr, cg, cb] = live ? heatRGB(r.density).map(Math.round) : [140, 133, 119];
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(L, T, R - L, B - T);
+    ctx.clip();
+    ctx.fillStyle = '#2B2826';
+    ctx.fillRect(L, T, R - L, B - T);
+    if (live) {
+      const reach = Math.max(R - L, B - T) * 0.9;
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, reach);
+      const a = Math.min(0.9, 0.3 + r.density / 8 * 0.6);
+      g.addColorStop(0, `rgba(${cr},${cg},${cb},${a})`);
+      g.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
+      ctx.fillStyle = g;
+      ctx.fillRect(L, T, R - L, B - T);
+    }
+    ctx.restore();
+
+    ctx.strokeStyle = `rgb(${cr},${cg},${cb})`;
+    ctx.lineWidth = 2 * dpr;
+    ctx.strokeRect(L, T, R - L, B - T);
+
+    // wide zones put their text on the left, clear of the zones that cross them
+    const font = Math.round(12 * dpr);
+    const wide = R - L >= B - T;
+    const pad = 8 * dpr;
+    const x = wide ? L + pad : cx;
+    const room = wide ? (R - L) - 2 * pad : (R - L) - 4 * dpr;
+    ctx.fillStyle = '#FDF9E0';
+    ctx.textAlign = wide ? 'left' : 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `800 ${font}px Overpass, system-ui, sans-serif`;
+    const value = live ? `${r.density.toFixed(1)} /m²` : 'no data';
+    const label = `${z.name || id}`;
+    const lines = [label, value].filter(t => ctx.measureText(t).width <= room);
+    lines.forEach((t, i) => ctx.fillText(t, x, cy + (i - (lines.length - 1) / 2) * font * 1.3));
+  }
+}
+
+/* ---------------- send a message on Telegram ---------------- */
+function buildSend() {
+  $('#sendZone').innerHTML = Object.entries(S.venue.zones)
+    .map(([id, z]) => `<option value="${esc(id)}">${esc(z.name || id)}</option>`).join('');
+}
+
+function renderSend(st) {
+  if (!st || !$('#sendZone').options.length) return;
+  const zone = $('#sendZone').value;
+  const name = S.venue.zones[zone]?.name || zone;
+  const sub = st.subscribers || { staff: 0, public_by_zone: {} };
+  const people = (sub.public_by_zone || {})[zone] || 0;
+  const staffOn = $('#sendStaff').checked, peopleOn = $('#sendPeople').checked;
+  const live = st.telegram.state === 'connected';
+
+  const reach = [];
+  if (staffOn) reach.push(`${sub.staff} staff`);
+  if (peopleOn) reach.push(`${people} ${people === 1 ? 'person' : 'people'} at ${name}`);
+  let text;
+  if (!live) text = `Telegram isn't connected, so nothing can be sent. ${tgLine(st.telegram)}`;
+  else if (!reach.length) text = 'Choose who to send to.';
+  else text = `Reaches ${reach.join(' and ')}.${staffOn && !sub.staff ? ' No staff have subscribed yet.' : ''}`;
+  $('#sendReach').textContent = text;
+  $('#sendBtn').disabled = !live || (!staffOn && !peopleOn);
+}
+
+async function sendManual() {
+  const st = S.state;
+  const zone = $('#sendZone').value;
+  const staffOn = $('#sendStaff').checked, peopleOn = $('#sendPeople').checked;
+  const name = S.venue.zones[zone]?.name || zone;
+  const people = (st.subscribers.public_by_zone || {})[zone] || 0;
+  const who = [staffOn && `${st.subscribers.staff} staff (with Accept)`,
+    peopleOn && `${people} ${people === 1 ? 'person' : 'people'} at ${name}`].filter(Boolean).join(' and ');
+  const what = $('#sendTemplate').selectedOptions[0].textContent;
+  if (!confirm(`Send "${what}" to ${who} on Telegram?`)) return;
+
+  const btn = $('#sendBtn'), status = $('#sendStatus');
+  btn.disabled = true;
+  status.textContent = 'Sending…';
+  try {
+    const res = await fetch('/api/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ zone, template: $('#sendTemplate').value, staff: staffOn, public: peopleOn, note: $('#sendNote').value }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.detail || `the server said ${res.status}`);
+    const done = [];
+    if (body.staff_incident) done.push('staff alert opened');
+    if (peopleOn) done.push(`${body.public_sent} ${body.public_sent === 1 ? 'person' : 'people'} messaged`);
+    status.textContent = `Sent at ${clock(now())}: ${done.join(', ')}.`;
+    $('#sendNote').value = '';
+  } catch (e) {
+    status.textContent = `Not sent: ${e.message}`;
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 init();

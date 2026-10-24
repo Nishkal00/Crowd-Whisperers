@@ -195,4 +195,28 @@ button { font: inherit; color: inherit; }
   .alert-body { grid-template-columns: 1fr; }
   .snap { width: 100%; }
 }
+/* ---------- summary strip ---------- */
+.summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; padding: 0 var(--gap) 14px; }
+.stat { background: var(--ash); border-radius: var(--r-md); padding: 12px 14px; display: grid; gap: 2px; min-width: 0; }
+.stat .k { color: var(--dust); font-size: 13px; }
+.stat .v { font-size: 20px; font-weight: 800; line-height: 1.2; }
+.stat .s { color: var(--dust); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- live heatmap ---------- */
+.heat-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px 16px; flex-wrap: wrap; }
+.heat canvas { width: 100%; height: auto; display: block; border-radius: var(--r-sm); }
+
+/* ---------- send on Telegram ---------- */
+.send .field { display: grid; gap: 4px; }
+.send .field label, .checks { color: var(--dust); font-size: 13.5px; }
+.send select, .send input[type="text"] { font: inherit; color: var(--bone); background: var(--soot); border: 1px solid var(--seam);
+  border-radius: var(--r-sm); min-height: 36px; padding: 0 10px; width: 100%; }
+.checks { display: flex; gap: 8px 18px; flex-wrap: wrap; }
+.checks label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.checks input { accent-color: var(--bone); width: 16px; height: 16px; }
+.reach { color: var(--dust); font-size: 13.5px; }
+
+@media (max-width: 1100px) { .summary { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0 16px 12px; } }
+
 @media (prefers-reduced-motion: reduce) { .alert.fresh { animation: none; } }

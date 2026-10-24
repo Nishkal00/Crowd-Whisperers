@@ -42,6 +42,21 @@ updates the open alert, so it's fine to send it every frame.
 
 Zone names must match `venue.json`. If you send one that isn't there, the page tells you.
 
+## The control room page
+
+- **Summary strip** (top): people counted, zones by level, the most crowded zone, the next zone
+  to turn critical, and how many staff and people are subscribed on Telegram.
+- **Camera**: the live picture, with zones outlined and the crowd heat shown on it.
+- **Live heatmap**: each zone's density drawn over the venue layout, green (safe), amber (warning),
+  red (critical). Zones with no recent data are grey.
+- **Send on Telegram**: pick a zone and a message, then send it to:
+  - **staff**: an alert with Accept / Can't go, dispatched like any other alert, with an optional note;
+  - **people in that zone**: a crowd update in their own language.
+
+  The page shows how many people and staff will get it and asks you to confirm first. Sending needs
+  the bot to be connected. Staff alerts appear in the Alerts panel, and crowd updates are only sent to
+  people who subscribed for that zone.
+
 ## Set up your own venue (`venue.json`)
 
 - **zones**: one per area the camera sees.

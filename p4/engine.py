@@ -16,6 +16,7 @@ RULES = {
     "scatter":     {"label": "People scattering",   "kinds": ["security", "police"],        "pa": "calm"},
     "on_tracks":   {"label": "Person on the tracks", "kinds": ["rpf", "police", "security"], "pa": "tracks"},
     "sos":         {"label": "SOS from the crowd",  "kinds": ["security", "medical", "police", "rpf"], "pa": None},
+    "manual":      {"label": "Manual alert",        "kinds": ["security", "police", "rpf", "medical"], "pa": None},
 }
 SOS_KINDS = {"medical": ["medical"], "crowding": ["security", "police", "rpf"]}
 CROWD_TYPES = ("crush_risk", "surge")

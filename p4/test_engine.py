@@ -92,3 +92,24 @@ def test_client_sends_only_the_latest_zone_numbers():
     wait_for(2)
     assert sent == [{"platform_1": {"density": 1.0}},
                     {"platform_1": {"density": 3.0}, "platform_2": {"level": "safe"}}]
+
+
+def test_send_endpoint_refuses_bad_requests_without_sending():
+    # Only the refusals: nothing here reaches Telegram.
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent))
+    from fastapi.testclient import TestClient
+    import server
+
+    client = TestClient(server.app)  # no "with": the lifespan (Telegram polling) doesn't start
+    assert client.post("/api/send", json={"zone": "nope", "template": "crowd", "staff": True}).status_code == 404
+    assert client.post("/api/send", json={"zone": "platform_1", "template": "x", "staff": True}).status_code == 400
+    assert client.post("/api/send", json={"zone": "platform_1", "template": "crowd"}).status_code == 400
+
+
+def test_subscriber_counts_by_zone():
+    from banshee import Banshee
+    b = Banshee(engine(), VENUE, token=None, log=lambda *_: None)
+    b.subscribers = {"1": {"role": "staff"}, "2": {"role": "public", "zone": "platform_1"},
+                     "3": {"role": "public", "zone": "platform_1"}, "4": {"role": "public", "zone": "footbridge"}}
+    assert b.counts() == {"staff": 1, "public": 3, "public_by_zone": {"platform_1": 2, "footbridge": 1}}

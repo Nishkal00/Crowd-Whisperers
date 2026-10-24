@@ -25,6 +25,8 @@
   </div>
 </header>
 
+<section class="summary" id="summary" aria-label="Venue at a glance"></section>
+
 <main class="room">
   <div class="col-main">
     <section class="stage" aria-label="Live camera">
@@ -55,6 +57,14 @@
       </div>
     </section>
 
+    <section class="panel heat" aria-label="Live heatmap">
+      <div class="heat-head">
+        <h2>Live heatmap</h2>
+        <p class="legend">Colour is people per m² in each zone: green safe, amber warning, red critical.</p>
+      </div>
+      <canvas id="heat" role="img" aria-label="Heatmap of people per square metre in each zone"></canvas>
+    </section>
+
     <div class="lower">
       <section class="panel map" aria-label="Venue map">
         <h2>Venue map</h2>
@@ -71,6 +81,36 @@
     <section class="alerts" aria-live="polite">
       <h2>Alerts</h2>
       <div id="alertBody"></div>
+    </section>
+    <section class="panel send" aria-label="Send a message on Telegram">
+      <h2>Send on Telegram</h2>
+      <div class="field">
+        <label for="sendZone">Zone</label>
+        <select id="sendZone"></select>
+      </div>
+      <div class="field">
+        <label for="sendTemplate">Message</label>
+        <select id="sendTemplate">
+          <option value="crowd">Crowd is building: move to the exit</option>
+          <option value="crowd_stay">Crowd is building: wait where you are</option>
+          <option value="calm">Stay calm and walk slowly</option>
+          <option value="make_way">Make way for the medical team</option>
+          <option value="tracks">Keep off the tracks</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="sendNote">Note for staff (optional)</label>
+        <input id="sendNote" type="text" maxlength="200" placeholder="e.g. gate 3 blocked">
+      </div>
+      <div class="checks">
+        <label><input type="checkbox" id="sendStaff" checked> Alert staff (with Accept)</label>
+        <label><input type="checkbox" id="sendPeople" checked> People in this zone</label>
+      </div>
+      <p class="reach" id="sendReach"></p>
+      <div class="pa-actions">
+        <button class="btn solid" id="sendBtn">Send</button>
+        <span class="pa-status" id="sendStatus"></span>
+      </div>
     </section>
     <section class="zones-sec" aria-label="Zones">
       <div class="zhead"><h2>Zones</h2><p class="legend">Each square is 1 m² of floor. Dots are people.</p></div>

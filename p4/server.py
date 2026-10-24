@@ -223,6 +223,30 @@ def incident_public(inc_id: int):
 
 
 # ---------------- data out (to the page) ----------------
+@app.post("/api/send")
+async def send_manual(payload: dict):
+    """Send a message from the control room on Telegram: a staff alert, a crowd update to the
+    people in one zone, or both. Staff alerts get Accept buttons and go through the normal dispatch."""
+    zone = payload.get("zone")
+    template = payload.get("template", "crowd")
+    to_staff, to_people = bool(payload.get("staff")), bool(payload.get("public"))
+    if zone not in VENUE["zones"]:
+        raise HTTPException(404, "Unknown zone")
+    if template not in pa.TEMPLATES:
+        raise HTTPException(400, "Unknown message")
+    if not (to_staff or to_people):
+        raise HTTPException(400, "Choose staff, people in the zone, or both")
+    redirect = engine.redirect_for(zone) if template == "crowd" else None
+    texts = pa.build(template, VENUE["zones"][zone], redirect, "medical" if template == "make_way" else None)
+    result = {"ok": True, "public_sent": 0, "staff_incident": None}
+    if to_people:
+        result["public_sent"] = await banshee.broadcast_public(zone, texts)
+    if to_staff:
+        note = (payload.get("note") or "").strip()[:200] or "Sent from the control room"
+        result["staff_incident"] = engine.open_incident("manual", zone, note=note, source="dashboard")["id"]
+    return result
+
+
 @app.get("/api/venue")
 def venue():
     return {**VENUE, "public_url": PUBLIC_URL, "rules": {k: v["label"] for k, v in RULES.items()}}
@@ -257,6 +281,7 @@ def state():
         "stats": engine.stats(),
         "escalate_after_s": banshee.escalate_after,
         "telegram": banshee.status,
+        "subscribers": banshee.counts(),
         "voice": {"available": voice.available, "error": voice.last_error},
         "pa": pa_focus(),
         "cameras": {cam: {"last_frame": f["ts"], "size": f["size"]} for cam, f in engine.frames.items()},
