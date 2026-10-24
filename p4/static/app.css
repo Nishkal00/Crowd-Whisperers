@@ -185,7 +185,8 @@ button { font: inherit; color: inherit; }
   /* one column: camera, alerts, zones, then the map and PA */
   .room { display: flex; flex-direction: column; }
   .col-main, .col-side { display: contents; }
-  .stage { order: 1; } .alerts { order: 2; } .zones-sec { order: 3; } .lower { order: 4; grid-template-columns: 1fr; }
+  .stage { order: 1; } .heat { order: 2; } .alerts { order: 3; } .send { order: 4; }
+  .zones-sec { order: 5; } .lower { order: 6; grid-template-columns: 1fr; }
   .vitals { gap: 16px; flex-wrap: wrap; justify-content: flex-end; }
 }
 @media (max-width: 640px) {
@@ -204,7 +205,18 @@ button { font: inherit; color: inherit; }
 
 /* ---------- live heatmap ---------- */
 .heat-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px 16px; flex-wrap: wrap; }
-.heat canvas { width: 100%; height: auto; display: block; border-radius: var(--r-sm); }
+.heatgrid { display: grid; gap: 4px; }
+.hz { display: grid; grid-template-columns: 150px 96px minmax(0, 1fr); gap: 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--seam); }
+.hz:first-child { border-top: 0; }
+.hz-name { font-weight: 700; font-size: 15px; }
+.hz-now { font-weight: 800; font-size: 22px; }
+.hz-unit { color: var(--dust); font-size: 13px; }
+.hz-strip { display: grid; grid-template-columns: repeat(60, minmax(0, 1fr)); gap: 2px; height: 26px; }
+.hz-strip i { display: block; border-radius: 3px; background: var(--seam); }
+.hz-strip i.empty { background: var(--ash-hi); }
+.hz-axis { display: grid; grid-template-columns: 150px 96px minmax(0, 1fr); gap: 12px; color: var(--dust); font-size: 12px; }
+.hz-axis .ax { display: flex; justify-content: space-between; }
+@media (max-width: 640px) { .hz, .hz-axis { grid-template-columns: 96px 70px minmax(0, 1fr); } .hz-name { font-size: 13px; } }
 
 /* ---------- send on Telegram ---------- */
 .send .field { display: grid; gap: 4px; }
@@ -215,6 +227,15 @@ button { font: inherit; color: inherit; }
 .checks label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
 .checks input { accent-color: var(--bone); width: 16px; height: 16px; }
 .reach { color: var(--dust); font-size: 13.5px; }
+
+/* ---------- camera switcher and automatic-alert switch ---------- */
+.cams { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.cam-tab { min-height: 30px; padding: 0 12px; font-size: 13.5px; }
+.cam-tab[aria-pressed="true"] { border-color: var(--bone); color: var(--bone); }
+.cam-tab:disabled { opacity: .45; }
+.venue-switch { display: inline-flex; gap: 4px; }
+.venue-switch [aria-pressed="true"] { border-color: var(--bone); color: var(--bone); }
+.btn.warn-off { border-color: var(--warn); color: var(--warn); }
 
 @media (max-width: 1100px) { .summary { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0 16px 12px; } }

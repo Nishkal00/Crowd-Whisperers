@@ -39,6 +39,7 @@ class Engine:
         self.clear_hold = float(venue.get("clear_hold_s", 10))
         self.event_cooldown = float(venue.get("event_cooldown_s", 30))
         self.stale_after = 8.0
+        self.auto_alerts = True   # off: the cameras and pipeline stop raising alerts; people can still raise them
         self.on_incident = on_incident
         self.zones = {zid: self._blank(zid) for zid in venue["zones"]}
         self.incidents = {}
@@ -137,7 +138,7 @@ class Engine:
             if hot:
                 z["calm_since"] = None
                 z["crit_since"] = z["crit_since"] or now
-                if crowd is None and now - z["crit_since"] >= self.critical_hold:
+                if self.auto_alerts and crowd is None and now - z["crit_since"] >= self.critical_hold:
                     kind = "crush_risk" if packed else "surge"
                     self.open_incident(kind, zid, source="camera")
                 elif crowd is not None:
@@ -171,6 +172,8 @@ class Engine:
         if zone not in self.zones:
             self.unknown_zones.add(zone)
             return None
+        if source == "camera" and not self.auto_alerts:
+            return None  # automatic alerts are off: camera events are ignored, nothing is raised
         for inc in self.incidents.values():
             if etype == "sos" or inc["type"] != etype or inc["zone"] != zone:
                 continue
@@ -209,7 +212,8 @@ class Engine:
             inc["has_snapshot"] = True
         how = {"camera": f"Detected on {zcfg.get('camera', 'camera')}",
                "sos": "Reported from the SOS page",
-               "dashboard": "Raised from the control room"}.get(source, "Detected")
+               "dashboard": "Raised from the control room",
+               "telegram": "Raised by staff on Telegram"}.get(source, "Detected")
         self._log(inc, "detected", how)
         self.incidents[inc["id"]] = inc
         self._trim()

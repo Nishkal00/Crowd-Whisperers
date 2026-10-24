@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Poltergeist control room</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23FF9A1F' d='M16 2C9.4 2 5 7 5 13.5V29l3.6-2.6L12.2 29l3.8-2.6 3.8 2.6 3.6-2.6L27 29V13.5C27 7 22.6 2 16 2Z'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="/static/app.css">
+<link rel="stylesheet" href="/static/app.css?v=venue2">
 </head>
 <body>
 <header class="top">
@@ -21,6 +21,11 @@
     <div class="vital" id="openVital"><span class="v" id="openCount">0</span><span class="k">open alerts</span></div>
     <div class="vital"><span class="v" id="avgResp">–</span><span class="k">average response</span></div>
     <div class="vital"><span class="v" id="clock">--:--:--</span><span class="k" id="link">Connecting</span></div>
+    <span class="venue-switch" id="venueSwitch" role="group" aria-label="Choose the venue">
+      <button class="btn quiet" data-venue="station">Station</button>
+      <button class="btn quiet" data-venue="stadium">Stadium</button>
+    </span>
+    <button class="btn" id="autoBtn" aria-pressed="true" title="Turn off to stop the cameras raising alerts. Manual alerts still work.">Automatic alerts: on</button>
     <button class="btn" id="soundBtn" aria-pressed="false">Turn on sound</button>
   </div>
 </header>
@@ -43,6 +48,7 @@
       <div class="feedbar">
         <span class="cam" id="camName"></span>
         <span id="camStatus"></span>
+        <span class="cams" id="camTabs"></span>
         <span class="grow"></span>
         <button class="btn quiet" id="drawBtn">Draw a zone</button>
       </div>
@@ -60,9 +66,9 @@
     <section class="panel heat" aria-label="Live heatmap">
       <div class="heat-head">
         <h2>Live heatmap</h2>
-        <p class="legend">Colour is people per m² in each zone: green safe, amber warning, red critical.</p>
+        <p class="legend">Each cell is half a second of one zone. Green safe, amber warning, red critical.</p>
       </div>
-      <canvas id="heat" role="img" aria-label="Heatmap of people per square metre in each zone"></canvas>
+      <div class="heatgrid" id="heatGrid" role="img" aria-label="Zone density over the last 30 seconds"></div>
     </section>
 
     <div class="lower">
@@ -119,6 +125,6 @@
     </section>
   </div>
 </main>
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v=venue2"></script>
 </body>
 </html>

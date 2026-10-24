@@ -113,3 +113,47 @@ def test_subscriber_counts_by_zone():
     b.subscribers = {"1": {"role": "staff"}, "2": {"role": "public", "zone": "platform_1"},
                      "3": {"role": "public", "zone": "platform_1"}, "4": {"role": "public", "zone": "footbridge"}}
     assert b.counts() == {"staff": 1, "public": 3, "public_by_zone": {"platform_1": 2, "footbridge": 1}}
+
+
+def test_staff_alert_from_telegram_opens_a_dashboard_incident():
+    import asyncio
+    from banshee import Banshee
+    e = engine()
+    b = Banshee(e, VENUE, token=None, log=lambda *_: None)
+    b._save_subscribers = lambda: None          # never touch the real subscribers.json
+    b.subscribers = {"1": {"role": "staff", "name": "Ann"}, "2": {"role": "public", "zone": "platform_1"}}
+    sent = []
+
+    async def fake_send(cid, text, buttons=None):
+        sent.append((cid, text))
+    b._send = fake_send
+
+    def update(cid, text):
+        return {"message": {"chat": {"id": int(cid), "first_name": "Ann"}, "text": text}}
+
+    asyncio.run(b._handle(update("1", "/alert platform_1 gate jammed")))
+    (inc,) = e.incidents.values()
+    assert inc["type"] == "manual" and inc["zone"] == "platform_1"
+    assert inc["note"] == "Ann: gate jammed"
+    assert any(e_["text"] == "Raised by staff on Telegram" for e_ in inc["timeline"])
+    assert "dashboard" in sent[-1][1]
+
+    asyncio.run(b._handle(update("1", "/alert nowhere help")))
+    assert len(e.incidents) == 1 and "Which zone" in sent[-1][1]
+
+    asyncio.run(b._handle(update("2", "/alert platform_1 help")))
+    assert len(e.incidents) == 1            # the public subscriber can't raise alerts
+
+
+def test_automatic_alerts_switch_off_camera_alerts_only():
+    e = engine()
+    e.auto_alerts = False
+    e.ingest_zones({"platform_1": {"density": 6.5, "level": "critical"}})
+    assert e.incidents == {}                                     # the camera's crush reading raises nothing
+    assert e.ingest_event("scatter", "platform_1") is None       # camera events are ignored too
+    assert e.incidents == {}
+    e.open_incident("manual", "platform_1", note="staff call", source="dashboard")
+    assert [i["type"] for i in e.incidents.values()] == ["manual"]  # people can still raise alerts
+    e.auto_alerts = True
+    e.ingest_zones({"platform_2": {"density": 6.5, "level": "critical"}})
+    assert "crush_risk" in [i["type"] for i in e.incidents.values()]

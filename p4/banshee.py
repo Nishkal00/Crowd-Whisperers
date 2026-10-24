@@ -287,7 +287,22 @@ class Banshee:
 
     def _staff_welcome(self, who):
         return (f"You're on the staff list, {html.escape(who)}. Every alert comes here with Accept and Can't go "
-                f"buttons; the first person to accept takes it. Send /stop to stop.")
+                f"buttons; the first person to accept takes it.\n"
+                f"Raise one yourself: <code>/alert ZONE what is happening</code>, e.g. "
+                f"<code>/alert platform_1 gate jammed</code>. Send /stop to stop.")
+
+    async def _staff_alert(self, cid, who, body):
+        """A staff member raises an alert from Telegram. It goes on the dashboard and to the staff chats."""
+        zone, _, note = body.partition(" ")
+        if zone not in self.venue["zones"]:
+            names = ", ".join(f"<code>{zid}</code>" for zid in self.venue["zones"])
+            await self._send(cid, f"Which zone? Use one of: {names}.\nExample: <code>/alert platform_1 gate jammed</code>")
+            return
+        inc = self.engine.open_incident("manual", zone, note=f"{who}: {note.strip() or 'needs attention'}",
+                                        source="telegram")
+        self.log(f"[banshee] {who} raised an alert at {zone} (#{inc['id']})")
+        await self._send(cid, f"Alert sent to the control room and the staff chats: "
+                              f"{html.escape(inc['zone_name'])}. It's on the dashboard now.")
 
     def _public_status(self, sub):
         zone = self.venue["zones"].get(sub.get("zone") or "", {}).get("name")
@@ -503,6 +518,8 @@ class Banshee:
                 await self._send(cid, "Where are you now?", self._zone_buttons())
             elif low.startswith("/lang"):
                 await self._send(cid, "Which language do you want updates in?", LANG_BUTTONS)
+            elif low.startswith("/alert") and sub.get("role") == "staff":
+                await self._staff_alert(cid, who, text[6:].strip())
             elif sub.get("role") == "staff":
                 await self._send(cid, self._staff_welcome(who))
             elif sub.get("role") == "public":

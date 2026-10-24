@@ -42,17 +42,43 @@ updates the open alert, so it's fine to send it every frame.
 
 Zone names must match `venue.json`. If you send one that isn't there, the page tells you.
 
+## Venues: station and stadium
+
+The control room runs one venue at a time. The venue is chosen when `server.py` starts:
+
+- **Railway station (default):** `python server.py`, with `venue.json`.
+- **Stadium exit:** `VENUE=venue_stadium.json python server.py`. One zone, Gate A, covering the whole picture.
+
+To run the stadium footage, start the stadium server, then in a second terminal:
+
+    python live_feed.py --venue venue_stadium.json --camera cam1
+
+Gate A's count is the number of heads in the whole picture in each frame of the footage.
+The stadium picture is a public square in the HT21-02 footage, not a real stadium; use your own
+footage for a real venue, and measure the gate areas before trusting the densities.
+
+**Switching in the dashboard:** the **Station** and **Stadium** buttons in the top bar switch the whole
+control room, for demos. Open alerts and the old venue's feeds are cleared, and the page reloads. Start
+the matching feed afterwards. The automatic-alerts setting is kept across the switch.
+
 ## The control room page
 
 - **Summary strip** (top): people counted, zones by level, the most crowded zone, the next zone
   to turn critical, and how many staff and people are subscribed on Telegram.
-- **Camera**: the live picture, with zones outlined and the crowd heat shown on it.
-- **Live heatmap**: each zone's density drawn over the venue layout, green (safe), amber (warning),
-  red (critical). Zones with no recent data are grey.
+- **Camera**: the live picture, with zones outlined and the crowd heat shown on it. Switch between
+  the views with the buttons under the picture: the platform overview, and close-ups of each
+  platform cut from it in perspective (`cam2`, `cam3` in venue.json). A camera with no feed yet
+  is greyed out.
+- **Live heatmap**: each zone is a row with its current density and a strip of the last 30 seconds,
+  one cell per half second, coloured green (safe), amber (warning) or red (critical).
+- **Automatic alerts** (top bar): turn them off to stop the cameras and pipeline raising alerts. Manual,
+  SOS and staff alerts still work. The setting is not saved, so it's back on after a restart.
 - **Send on Telegram**: pick a zone and a message, then send it to:
   - **staff**: an alert with Accept / Can't go, dispatched like any other alert, with an optional note;
   - **people in that zone**: a crowd update in their own language.
 
+  Staff can also raise an alert from Telegram with `/alert ZONE message`. It appears on the dashboard
+  and goes to the staff chats.
   The page shows how many people and staff will get it and asks you to confirm first. Sending needs
   the bot to be connected. Staff alerts appear in the Alerts panel, and crowd updates are only sent to
   people who subscribed for that zone.

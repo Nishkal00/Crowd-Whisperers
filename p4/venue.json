@@ -10,7 +10,55 @@
   "event_cooldown_s": 30,
   "cameras": {
     "cam1": {
-      "name": "Platform 1 north"
+      "name": "Platforms overview"
+    },
+    "cam2": {
+      "name": "Platform 1 close-up",
+      "from": "cam1",
+      "quad": [
+        [
+          0.0,
+          0.35
+        ],
+        [
+          0.62,
+          0.18
+        ],
+        [
+          0.58,
+          0.98
+        ],
+        [
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    "cam3": {
+      "name": "Platform 2 close-up",
+      "from": "cam1",
+      "quad": [
+        [
+          0.45,
+          0.15
+        ],
+        [
+          1.0,
+          0.18
+        ],
+        [
+          1.0,
+          0.8
+        ],
+        [
+          0.5,
+          0.85
+        ]
+      ]
+    },
+    "cam4": {
+      "name": "Station forecourt",
+      "footage": "HT21-02 (MOTChallenge HT21), counts from its ground-truth head positions"
     }
   },
   "zones": {
@@ -22,9 +70,50 @@
       },
       "camera": "cam1",
       "area_m2": 180,
-      "polygon": [[0.0, 0.7625], [0.5699, 0.0708], [0.6036, 0.0926], [0.5086, 0.4031], [0.4228, 0.61], [0.3186, 0.8606], [0.2574, 1.0], [0.0, 1.0]],
-      "label_at": [0.12, 0.66],
-      "map": [[10, 34], [140, 34], [140, 44], [10, 44]],
+      "polygon": [
+        [
+          0.0,
+          0.68
+        ],
+        [
+          0.54,
+          0.06
+        ],
+        [
+          0.6,
+          0.06
+        ],
+        [
+          0.36,
+          1.0
+        ],
+        [
+          0.0,
+          1.0
+        ]
+      ],
+      "label_at": [
+        0.12,
+        0.62
+      ],
+      "map": [
+        [
+          10,
+          34
+        ],
+        [
+          140,
+          34
+        ],
+        [
+          140,
+          44
+        ],
+        [
+          10,
+          44
+        ]
+      ],
       "redirect_to": [
         "footbridge"
       ]
@@ -37,9 +126,50 @@
       },
       "camera": "cam1",
       "area_m2": 220,
-      "polygon": [[0.6097, 0.0871], [0.6618, 0.0763], [1.0, 0.2505], [1.0, 0.7952], [0.9436, 0.7625], [0.8456, 0.5011], [0.7353, 0.2505]],
-      "label_at": [0.8, 0.3],
-      "map": [[10, 8], [140, 8], [140, 18], [10, 18]],
+      "polygon": [
+        [
+          0.68,
+          0.06
+        ],
+        [
+          1.0,
+          0.06
+        ],
+        [
+          1.0,
+          0.62
+        ],
+        [
+          0.82,
+          0.62
+        ],
+        [
+          0.7,
+          0.22
+        ]
+      ],
+      "label_at": [
+        0.84,
+        0.2
+      ],
+      "map": [
+        [
+          10,
+          8
+        ],
+        [
+          140,
+          8
+        ],
+        [
+          140,
+          18
+        ],
+        [
+          10,
+          18
+        ]
+      ],
       "redirect_to": [
         "footbridge"
       ]
@@ -52,59 +182,187 @@
       },
       "camera": "cam1",
       "area_m2": 120,
-      "polygon": [[0.0, 0.0], [1.0, 0.0], [1.0, 0.0654], [0.3431, 0.0893], [0.0, 0.1046]],
-      "label_at": [0.38, 0.03],
-      "map": [[66, 0], [78, 0], [78, 52], [66, 52]],
+      "polygon": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          1.0,
+          0.0
+        ],
+        [
+          1.0,
+          0.05
+        ],
+        [
+          0.6,
+          0.05
+        ],
+        [
+          0.0,
+          0.05
+        ]
+      ],
+      "label_at": [
+        0.5,
+        0.02
+      ],
+      "map": [
+        [
+          66,
+          0
+        ],
+        [
+          78,
+          0
+        ],
+        [
+          78,
+          52
+        ],
+        [
+          66,
+          52
+        ]
+      ],
       "redirect_to": [
         "platform_2"
       ]
+    },
+    "forecourt": {
+      "name": "Station forecourt",
+      "names": {
+        "hi": "स्टेशन प्रांगण",
+        "kn": "ನಿಲ್ದಾಣದ ಮುಂಭಾಗ"
+      },
+      "camera": "cam4",
+      "area_m2": 600,
+      "area_note": "estimated from the footage, not measured",
+      "polygon": [
+        [
+          0.0,
+          0.06
+        ],
+        [
+          1.0,
+          0.06
+        ],
+        [
+          1.0,
+          1.0
+        ],
+        [
+          0.0,
+          1.0
+        ]
+      ],
+      "label_at": [
+        0.5,
+        0.12
+      ],
+      "map": [
+        [
+          156,
+          6
+        ],
+        [
+          186,
+          6
+        ],
+        [
+          186,
+          46
+        ],
+        [
+          156,
+          46
+        ]
+      ],
+      "redirect_to": []
     }
   },
   "map_lines": [
-    [[0, 23], [150, 23]],
-    [[0, 29], [150, 29]]
+    [
+      [
+        0,
+        23
+      ],
+      [
+        150,
+        23
+      ]
+    ],
+    [
+      [
+        0,
+        29
+      ],
+      [
+        150,
+        29
+      ]
+    ]
   ],
   "posts": [
     {
       "id": "sec_a",
       "name": "Security desk A",
       "kind": "security",
-      "pos": [84, 52],
+      "pos": [
+        84,
+        52
+      ],
       "telegram_chat_id": ""
     },
     {
       "id": "rpf_2",
       "name": "RPF post 2",
       "kind": "rpf",
-      "pos": [124, 52],
+      "pos": [
+        124,
+        52
+      ],
       "telegram_chat_id": ""
     },
     {
       "id": "med_room",
       "name": "Station medical room",
       "kind": "medical",
-      "pos": [20, 52],
+      "pos": [
+        20,
+        52
+      ],
       "telegram_chat_id": ""
     },
     {
       "id": "med_b",
       "name": "First-aid post B",
       "kind": "medical",
-      "pos": [100, 3],
+      "pos": [
+        100,
+        3
+      ],
       "telegram_chat_id": ""
     },
     {
       "id": "sec_b",
       "name": "Security desk B",
       "kind": "security",
-      "pos": [40, 3],
+      "pos": [
+        40,
+        3
+      ],
       "telegram_chat_id": ""
     },
     {
       "id": "grp",
       "name": "GRP police booth",
       "kind": "police",
-      "pos": [146, 3],
+      "pos": [
+        146,
+        3
+      ],
       "telegram_chat_id": ""
     }
   ]

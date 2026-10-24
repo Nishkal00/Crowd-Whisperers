@@ -43,6 +43,7 @@ async function init() {
   $('#venueName').textContent = S.venue.venue || '';
   $('#camName').textContent = (S.venue.cameras?.[S.camera]?.name) || S.camera;
   buildOverlay();
+  buildCams();
   buildMap();
   buildSend();
   bindUI();
@@ -77,6 +78,10 @@ function startVideo() {
 
 /* ---------------- render ---------------- */
 function render(st) {
+  // the venue was switched (from this page or another): the page is built for the old one, so reload
+  if (!S.venueKey) S.venueKey = st.venue_key;
+  else if (st.venue_key && st.venue_key !== S.venueKey) { location.reload(); return; }
+  document.querySelectorAll('#venueSwitch [data-venue]').forEach(b => b.setAttribute('aria-pressed', b.dataset.venue === st.venue_key));
   // header
   $('#openCount').textContent = st.stats.open;
   $('#openVital').classList.toggle('alarm', st.stats.open > 0);
@@ -95,6 +100,11 @@ function render(st) {
   renderAlerts(st);
   renderMap(zones, st.incidents);
   renderPA(st.pa, st.voice);
+  const auto = $('#autoBtn');
+  auto.textContent = st.auto_alerts ? 'Automatic alerts: on' : 'Automatic alerts: off';
+  auto.setAttribute('aria-pressed', !!st.auto_alerts);
+  auto.classList.toggle('warn-off', !st.auto_alerts);
+  markCams();
   renderSummary(st);
   renderHeat(zones);
   renderSend(st);
@@ -114,13 +124,23 @@ function render(st) {
 }
 
 /* camera overlay: zones drawn on top of the video */
+/* the outline of a zone as seen by the current camera: its own camera, or a close-up cut from it */
+function polygonFor(id) {
+  const z = S.venue.zones[id];
+  if (z.camera === S.camera && z.polygon) return z.polygon;
+  return S.venue.zone_views?.[id]?.[S.camera] || null;
+}
+
 function buildOverlay() {
   const ov = $('#overlay');
   const labels = $('#labels');
+  ov.innerHTML = '';
+  labels.innerHTML = '';
   for (const [id, z] of Object.entries(S.venue.zones)) {
-    if (!z.polygon || (z.camera && z.camera !== S.camera)) continue;
-    ov.appendChild(svg('polygon', { id: `zp-${id}`, class: 'zpoly nodata', points: z.polygon.map(p => p.join(',')).join(' ') }));
-    const [x, y] = z.label_at || centroid(z.polygon);
+    const poly = polygonFor(id);
+    if (!poly) continue;
+    ov.appendChild(svg('polygon', { id: `zp-${id}`, class: 'zpoly nodata', points: poly.map(p => p.join(',')).join(' ') }));
+    const [x, y] = (z.camera === S.camera && z.label_at) || centroid(poly);
     const lab = document.createElement('div');
     lab.className = 'zlabel nodata';
     lab.id = `zl-${id}`;
@@ -147,7 +167,7 @@ function renderOverlay(zones) {
 
 function renderRings(incidents) {
   const live = incidents.filter(i => OPEN.includes(i.status) && i.bbox && i.camera === S.camera);
-  once('rings', JSON.stringify(live.map(i => [i.id, i.bbox, i.label])), () => {
+  once('rings', JSON.stringify([S.camera, live.map(i => [i.id, i.bbox, i.label])]), () => {
     $('#rings').innerHTML = live.map(i => {
       const [x, y, w, h] = i.bbox;
       const size = Math.max(w, h * 9 / 16) * 100 * 1.7 + 3;
@@ -425,6 +445,17 @@ function bindUI() {
     $(`#${id}`).onchange = () => renderSend(S.state);
   }
   $('#sendBtn').onclick = sendManual;
+  $('#venueSwitch').onclick = async e => {
+    const b = e.target.closest('[data-venue]');
+    if (!b || b.dataset.venue === S.state?.venue_key) return;
+    if (!confirm(`Switch the control room to ${b.textContent}? Open alerts and the current feeds are cleared.`)) return;
+    await fetch(`/api/venue/${b.dataset.venue}`, { method: 'POST' }).catch(() => {});
+  };
+  $('#autoBtn').onclick = async () => {
+    const on = !(S.state && S.state.auto_alerts);
+    if (!on && !confirm('Turn off automatic alerts? The cameras will stop raising alerts. Manual, SOS and staff alerts still work.')) return;
+    await fetch('/api/auto-alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on }) }).catch(() => {});
+  };
 
   // drawing zones on the camera view
   const feed = $('#feed');
@@ -549,6 +580,38 @@ function onNewAlert(inc) {
   }, 300);
 }
 
+/* ---------------- camera switcher ---------------- */
+function buildCams() {
+  $('#camTabs').innerHTML = Object.entries(S.venue.cameras || {})
+    .map(([id, c]) => `<button class="btn quiet cam-tab" data-cam="${esc(id)}">${esc(c.name || id)}</button>`).join('');
+  $('#camTabs').onclick = e => {
+    const b = e.target.closest('[data-cam]');
+    if (b && !b.disabled && b.dataset.cam !== S.camera) setCamera(b.dataset.cam);
+  };
+  $('#camName').textContent = S.venue.cameras?.[S.camera]?.name || S.camera;
+  markCams();
+}
+
+function setCamera(cam) {
+  S.camera = cam;
+  $('#camName').textContent = S.venue.cameras?.[cam]?.name || cam;
+  $('#feedImg').src = `/api/video/${cam}?t=${Date.now()}`;
+  buildOverlay();
+  markCams();
+  if (S.state) render(S.state);
+}
+
+/* a camera with no frames yet is shown but can't be selected */
+function markCams() {
+  const live = S.state?.cameras || {};
+  document.querySelectorAll('.cam-tab').forEach(b => {
+    const id = b.dataset.cam;
+    b.setAttribute('aria-pressed', id === S.camera);
+    b.disabled = !live[id] && id !== S.camera;
+    b.title = b.disabled ? 'No feed from this camera yet' : '';
+  });
+}
+
 /* ---------------- summary strip: the venue at a glance ---------------- */
 function renderSummary(st) {
   const live = st.zones.filter(z => z.level !== 'stale' && z.level !== 'nodata');
@@ -577,77 +640,37 @@ function tgShort(tg) {
   return tg.state === 'connected' ? 'bot connected' : tg.state === 'starting' ? 'bot connecting' : 'bot not connected';
 }
 
-/* ---------------- live heatmap: density per zone, drawn over the venue map ---------------- */
-const HEAT_STOPS = [[0, [91, 209, 139]], [4, [255, 194, 61]], [6, [255, 90, 78]], [8, [255, 40, 40]]];
-function heatRGB(d) {
-  for (let i = 1; i < HEAT_STOPS.length; i++) {
-    const [x2, c2] = HEAT_STOPS[i];
-    const [x1, c1] = HEAT_STOPS[i - 1];
-    if (d <= x2) {
-      const f = Math.max(0, (d - x1) / (x2 - x1));
-      return c1.map((v, k) => v + (c2[k] - v) * f);
-    }
-  }
-  return HEAT_STOPS[HEAT_STOPS.length - 1][1];
-}
+/* ---------------- live heatmap: each zone over the last 30 seconds ---------------- */
+const HEAT_CELLS = 60;          // one cell per status update (about 0.5 s), so 30 seconds
+const LEVEL_COLOUR = { safe: '#5BD18B', warning: '#FFC23D', critical: '#FF5A4E' };
 
 function renderHeat(zones) {
-  if (!S.mapBox) return;
-  const cv = $('#heat');
-  const [x0, y0, w, h] = S.mapBox;
-  const dpr = window.devicePixelRatio || 1;
-  const W = Math.round(cv.clientWidth * dpr) || 640;
-  const H = Math.round(W * h / w);
-  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
-  const ctx = cv.getContext('2d');
-  const sx = W / w, sy = H / h;
-  ctx.fillStyle = '#1F1C1A';
-  ctx.fillRect(0, 0, W, H);
-
-  for (const [id, z] of Object.entries(S.venue.zones)) {
-    if (!z.map) continue;
-    const r = zones[id];
-    const xs = z.map.map(p => (p[0] - x0) * sx), ys = z.map.map(p => (p[1] - y0) * sy);
-    const L = Math.min(...xs), R = Math.max(...xs), T = Math.min(...ys), B = Math.max(...ys);
-    const cx = (L + R) / 2, cy = (T + B) / 2;
-    const live = r && r.density != null && r.level !== 'stale';
-    const [cr, cg, cb] = live ? heatRGB(r.density).map(Math.round) : [140, 133, 119];
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(L, T, R - L, B - T);
-    ctx.clip();
-    ctx.fillStyle = '#2B2826';
-    ctx.fillRect(L, T, R - L, B - T);
-    if (live) {
-      const reach = Math.max(R - L, B - T) * 0.9;
-      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, reach);
-      const a = Math.min(0.9, 0.3 + r.density / 8 * 0.6);
-      g.addColorStop(0, `rgba(${cr},${cg},${cb},${a})`);
-      g.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
-      ctx.fillStyle = g;
-      ctx.fillRect(L, T, R - L, B - T);
-    }
-    ctx.restore();
-
-    ctx.strokeStyle = `rgb(${cr},${cg},${cb})`;
-    ctx.lineWidth = 2 * dpr;
-    ctx.strokeRect(L, T, R - L, B - T);
-
-    // wide zones put their text on the left, clear of the zones that cross them
-    const font = Math.round(12 * dpr);
-    const wide = R - L >= B - T;
-    const pad = 8 * dpr;
-    const x = wide ? L + pad : cx;
-    const room = wide ? (R - L) - 2 * pad : (R - L) - 4 * dpr;
-    ctx.fillStyle = '#FDF9E0';
-    ctx.textAlign = wide ? 'left' : 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = `800 ${font}px Overpass, system-ui, sans-serif`;
-    const value = live ? `${r.density.toFixed(1)} /m²` : 'no data';
-    const label = `${z.name || id}`;
-    const lines = [label, value].filter(t => ctx.measureText(t).width <= room);
-    lines.forEach((t, i) => ctx.fillText(t, x, cy + (i - (lines.length - 1) / 2) * font * 1.3));
+  S.hist = S.hist || {};
+  for (const id of Object.keys(S.venue.zones)) {
+    const z = zones[id];
+    const live = z && z.density != null && z.level !== 'stale';
+    const arr = S.hist[id] || (S.hist[id] = []);
+    arr.push(live ? { d: z.density, level: z.level } : null);
+    if (arr.length > HEAT_CELLS) arr.shift();
+  }
+  // rebuilt on every update: the strips scroll, so there's no cheap cache key
+  {
+    $('#heatGrid').innerHTML = Object.entries(S.venue.zones).map(([id, zc]) => {
+      const arr = S.hist[id] || [];
+      const cells = Array.from({ length: HEAT_CELLS }, (_, i) => {
+        const s = arr[arr.length - HEAT_CELLS + i];
+        if (!s) return '<i class="empty"></i>';
+        return `<i style="background:${LEVEL_COLOUR[s.level] || '#8C8577'}" title="${s.d.toFixed(1)} people per m²"></i>`;
+      }).join('');
+      const last = arr.filter(Boolean).at(-1);
+      const now = last ? `<span class="hz-now" style="color:${LEVEL_COLOUR[last.level]}">${last.d.toFixed(1)}</span> <span class="hz-unit">/m²</span>`
+        : '<span class="hz-now">–</span>';
+      return `<div class="hz">
+        <div class="hz-name">${esc(zc.name || id)}</div>
+        <div class="hz-value">${now}</div>
+        <div class="hz-strip" aria-hidden="true">${cells}</div>
+      </div>`;
+    }).join('') + '<div class="hz-axis"><span></span><span></span><span class="ax"><span>30 s ago</span><span>now</span></span></div>';
   }
 }
 

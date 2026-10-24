@@ -23,6 +23,7 @@ import time
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
+import views
 from poltergeist_client import Poltergeist
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -80,7 +81,7 @@ def main():
         import urllib.request
         urllib.request.urlopen(urllib.request.Request(args.server + "/api/reset", data=b"{}", method="POST"))
 
-    base = Image.open(os.path.join(HERE, "demo", "station.jpg")).convert("RGBA")
+    base = Image.open(os.path.join(HERE, "demo", "platform_overview.jpg")).convert("RGBA")
     W, H = base.size
     tex = np.asarray(Image.open(os.path.join(HERE, "demo", "station_texture.png")).convert("L"), np.float32) / 255
     th, tw = tex.shape
@@ -108,6 +109,7 @@ def main():
         if fps <= 1 or fps > 120:
             fps = 25
 
+    cam_clients = {}  # one sender per derived camera, e.g. cam2 and cam3
     print(f"Simulating P1-P3 -> {args.server}  (Ctrl+C to stop)")
     start = time.time()
     last_zone_push = 0
@@ -140,6 +142,14 @@ def main():
             buf = io.BytesIO()
             img.save(buf, "JPEG", quality=72)
             pg.frame(buf.getvalue())
+            # close-up views: the same picture, cut out in perspective for each derived camera
+            for cam, cfg in venue.get("cameras", {}).items():
+                if cfg.get("from") and cfg.get("quad"):
+                    crop = img.transform((960, 540), Image.PERSPECTIVE,
+                                         views.pil_coeffs(cfg["quad"], img.size, (960, 540)), Image.BILINEAR)
+                    buf = io.BytesIO()
+                    crop.convert("RGB").save(buf, "JPEG", quality=72)
+                    cam_clients.setdefault(cam, Poltergeist(args.server, camera=cam)).frame(buf.getvalue())
 
         # ---- numbers (what P2 + P3 would send), twice a second ----
         if time.time() - last_zone_push >= 0.5:

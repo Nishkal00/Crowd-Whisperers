@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 import pa
+import views
 from banshee import Banshee
 from engine import OPEN_STATUSES, RULES, Engine
 
@@ -45,8 +46,11 @@ def lan_ip():
 
 load_env()
 PORT = int(os.environ.get("PORT", 8000))
-VENUE_PATH = os.environ.get("VENUE", os.path.join(HERE, "venue.json"))
+# the venues the dashboard can switch between (the demo switch); VENUE picks the one to start with
+VENUE_FILES = {"station": os.path.join(HERE, "venue.json"), "stadium": os.path.join(HERE, "venue_stadium.json")}
+VENUE_PATH = os.environ.get("VENUE", VENUE_FILES["station"])
 VENUE = json.load(open(VENUE_PATH, encoding="utf-8"))
+VENUE_KEY = next((k for k, p in VENUE_FILES.items() if os.path.abspath(p) == os.path.abspath(VENUE_PATH)), "custom")
 PUBLIC_URL = os.environ.get("PUBLIC_URL") or f"http://{lan_ip()}:{PORT}"
 
 voice = pa.Voice(os.path.join(HERE, "pa_cache"))
@@ -71,6 +75,21 @@ def on_incident(inc):
 
 
 engine.on_incident = on_incident
+
+
+def switch_venue(key):
+    """Swap the whole control room to another venue. Alerts and frames from the old one are dropped."""
+    global VENUE, VENUE_KEY, engine
+    path = VENUE_FILES[key]
+    VENUE = json.load(open(path, encoding="utf-8"))
+    VENUE_KEY = key
+    auto = engine.auto_alerts  # keep the automatic-alerts setting the presenter chose
+    engine = Engine(VENUE, on_incident=on_incident)
+    engine.auto_alerts = auto
+    banshee.engine, banshee.venue = engine, VENUE
+    banshee.posts = {p["id"]: p for p in VENUE.get("posts", [])}
+    banshee.escalate_after = float(VENUE.get("escalate_after_s", 60))
+    print(f"Venue: {VENUE.get('venue', key)}")
 
 
 @asynccontextmanager
@@ -153,11 +172,29 @@ async def event_in(payload: dict):
     zone = payload.get("zone")
     if not etype or not zone:
         raise HTTPException(400, "Need 'type' and 'zone'")
+    if zone not in VENUE["zones"]:
+        raise HTTPException(404, f"Unknown zone '{zone}'. Add it to venue.json.")
     inc = engine.ingest_event(etype, zone, bbox=payload.get("bbox"), confidence=payload.get("confidence"),
                               note=payload.get("note"))
     if inc is None:
-        raise HTTPException(404, f"Unknown zone '{zone}'. Add it to venue.json.")
+        return {"ok": True, "incident": None, "automatic_alerts": engine.auto_alerts}
     return {"ok": True, "incident": inc["id"]}
+
+
+@app.post("/api/venue/{key}")
+async def change_venue(key: str):
+    if key not in VENUE_FILES:
+        raise HTTPException(404, "Unknown venue")
+    switch_venue(key)
+    return {"ok": True, "venue": key}
+
+
+@app.post("/api/auto-alerts")
+async def set_auto_alerts(payload: dict):
+    """Turn automatic alerts from the cameras on or off. Manual, SOS and staff alerts are unaffected."""
+    engine.auto_alerts = bool(payload.get("on"))
+    print(f"Automatic alerts {'on' if engine.auto_alerts else 'off'}")
+    return {"ok": True, "auto_alerts": engine.auto_alerts}
 
 
 @app.post("/api/sos/{zone}")
@@ -249,7 +286,8 @@ async def send_manual(payload: dict):
 
 @app.get("/api/venue")
 def venue():
-    return {**VENUE, "public_url": PUBLIC_URL, "rules": {k: v["label"] for k, v in RULES.items()}}
+    return {**VENUE, "public_url": PUBLIC_URL, "rules": {k: v["label"] for k, v in RULES.items()},
+            "zone_views": views.zone_views(VENUE)}
 
 
 def pa_focus():
@@ -282,6 +320,8 @@ def state():
         "escalate_after_s": banshee.escalate_after,
         "telegram": banshee.status,
         "subscribers": banshee.counts(),
+        "auto_alerts": engine.auto_alerts,
+        "venue_key": VENUE_KEY,
         "voice": {"available": voice.available, "error": voice.last_error},
         "pa": pa_focus(),
         "cameras": {cam: {"last_frame": f["ts"], "size": f["size"]} for cam, f in engine.frames.items()},
