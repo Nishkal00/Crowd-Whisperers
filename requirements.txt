@@ -1,0 +1,12 @@
+# Everything for P1-P4 and run.py. Install with: pip install -r requirements.txt
+ultralytics          # P1: YOLOv8 people + pose (pulls in torch; install the CUDA build of torch for a GPU)
+opencv-python        # P1-P3
+numpy
+fastapi>=0.110       # P4: control room
+uvicorn[standard]>=0.29
+httpx>=0.27          # P4: Telegram
+gTTS>=2.5            # P4: PA voice
+qrcode>=7.4          # P4: SOS QR codes
+pillow>=10
+streamlit            # P2's own demo page only
+pytest

@@ -1,0 +1,17 @@
+# secrets and local state
+.env
+p4/.env
+p4/subscribers.json
+p4/pa_cache/
+# python and tooling
+__pycache__/
+.pytest_cache/
+*.pyc
+.venv/
+# generated output
+p3/out/
+# original zips and macOS junk
+*.zip
+__MACOSX/
+.DS_Store
+*.mp4

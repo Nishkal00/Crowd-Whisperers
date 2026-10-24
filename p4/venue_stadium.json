@@ -1,0 +1,239 @@
+{
+  "venue": "Stadium exit (HT21-02 footage)",
+  "thresholds": {
+    "warning": 4.0,
+    "critical": 6.0
+  },
+  "critical_hold_s": 3,
+  "clear_hold_s": 10,
+  "escalate_after_s": 20,
+  "event_cooldown_s": 30,
+  "cameras": {
+    "cam1": {
+      "name": "Stadium exit, night"
+    }
+  },
+  "zones": {
+    "gate_b": {
+      "name": "Gate B (centre)",
+      "names": {
+        "hi": "गेट B",
+        "kn": "ಗೇಟ್ B"
+      },
+      "camera": "cam1",
+      "area_m2": 60,
+      "polygon": [
+        [
+          0.34,
+          0.2
+        ],
+        [
+          0.66,
+          0.2
+        ],
+        [
+          0.66,
+          1.0
+        ],
+        [
+          0.34,
+          1.0
+        ]
+      ],
+      "label_at": [
+        0.5,
+        0.26
+      ],
+      "map": [
+        [
+          40,
+          10
+        ],
+        [
+          70,
+          10
+        ],
+        [
+          70,
+          40
+        ],
+        [
+          40,
+          40
+        ]
+      ],
+      "redirect_to": [
+        "gate_c",
+        "gate_a"
+      ]
+    },
+    "gate_a": {
+      "name": "Gate A (left)",
+      "names": {
+        "hi": "गेट A",
+        "kn": "ಗೇಟ್ A"
+      },
+      "camera": "cam1",
+      "area_m2": 60,
+      "polygon": [
+        [
+          0.0,
+          0.2
+        ],
+        [
+          0.34,
+          0.2
+        ],
+        [
+          0.34,
+          1.0
+        ],
+        [
+          0.0,
+          1.0
+        ]
+      ],
+      "label_at": [
+        0.17,
+        0.26
+      ],
+      "map": [
+        [
+          8,
+          10
+        ],
+        [
+          38,
+          10
+        ],
+        [
+          38,
+          40
+        ],
+        [
+          8,
+          40
+        ]
+      ],
+      "redirect_to": [
+        "gate_b"
+      ]
+    },
+    "gate_c": {
+      "name": "Gate C (right)",
+      "names": {
+        "hi": "गेट C",
+        "kn": "ಗೇಟ್ C"
+      },
+      "camera": "cam1",
+      "area_m2": 60,
+      "polygon": [
+        [
+          0.66,
+          0.2
+        ],
+        [
+          1.0,
+          0.2
+        ],
+        [
+          1.0,
+          1.0
+        ],
+        [
+          0.66,
+          1.0
+        ]
+      ],
+      "label_at": [
+        0.83,
+        0.26
+      ],
+      "map": [
+        [
+          72,
+          10
+        ],
+        [
+          102,
+          10
+        ],
+        [
+          102,
+          40
+        ],
+        [
+          72,
+          40
+        ]
+      ],
+      "redirect_to": [
+        "gate_b"
+      ]
+    }
+  },
+  "map_lines": [
+    [
+      [
+        0,
+        6
+      ],
+      [
+        110,
+        6
+      ]
+    ]
+  ],
+  "posts": [
+    {
+      "id": "sec_1",
+      "name": "Steward point 1",
+      "kind": "security",
+      "pos": [
+        55,
+        50
+      ],
+      "telegram_chat_id": ""
+    },
+    {
+      "id": "sec_2",
+      "name": "Steward point 2",
+      "kind": "security",
+      "pos": [
+        105,
+        48
+      ],
+      "telegram_chat_id": ""
+    },
+    {
+      "id": "police",
+      "name": "Police outpost",
+      "kind": "police",
+      "pos": [
+        4,
+        50
+      ],
+      "telegram_chat_id": ""
+    },
+    {
+      "id": "med_1",
+      "name": "First-aid tent",
+      "kind": "medical",
+      "pos": [
+        30,
+        52
+      ],
+      "telegram_chat_id": ""
+    },
+    {
+      "id": "med_2",
+      "name": "Ambulance bay",
+      "kind": "medical",
+      "pos": [
+        100,
+        2
+      ],
+      "telegram_chat_id": ""
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poltergeist control room</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23FF9A1F' d='M16 2C9.4 2 5 7 5 13.5V29l3.6-2.6L12.2 29l3.8-2.6 3.8 2.6 3.6-2.6L27 29V13.5C27 7 22.6 2 16 2Z'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true">
+      <path fill="#FF9A1F" d="M16 2C9.4 2 5 7 5 13.5V29l3.6-2.6L12.2 29l3.8-2.6 3.8 2.6 3.6-2.6L27 29V13.5C27 7 22.6 2 16 2Z"/>
+      <ellipse cx="12" cy="13.5" rx="2.1" ry="2.8" fill="#2B2826"/><ellipse cx="20" cy="13.5" rx="2.1" ry="2.8" fill="#2B2826"/>
+    </svg>
+    <span class="word">Poltergeist</span>
+    <span class="venue" id="venueName"></span>
+  </div>
+  <div class="vitals">
+    <div class="vital" id="openVital"><span class="v" id="openCount">0</span><span class="k">open alerts</span></div>
+    <div class="vital"><span class="v" id="avgResp">–</span><span class="k">average response</span></div>
+    <div class="vital"><span class="v" id="clock">--:--:--</span><span class="k" id="link">Connecting</span></div>
+    <button class="btn" id="soundBtn" aria-pressed="false">Turn on sound</button>
+  </div>
+</header>
+
+<main class="room">
+  <div class="col-main">
+    <section class="stage" aria-label="Live camera">
+      <div class="feed" id="feed">
+        <img id="feedImg" alt="Live camera with zones outlined">
+        <svg class="overlay" id="overlay" viewBox="0 0 1 1" preserveAspectRatio="none"></svg>
+        <div id="labels"></div>
+        <div id="rings"></div>
+        <div class="waiting" id="waiting">
+          <b>Waiting for the camera</b>
+          <span>Start the vision pipeline, or run <code>python simulate.py</code> for the demo feed.</span>
+        </div>
+      </div>
+      <div class="feedbar">
+        <span class="cam" id="camName"></span>
+        <span id="camStatus"></span>
+        <span class="grow"></span>
+        <button class="btn quiet" id="drawBtn">Draw a zone</button>
+      </div>
+      <div class="drawer" id="drawer" hidden>
+        <p>Click around the area on the camera view. Paste the points into this zone's <code>polygon</code> in venue.json.</p>
+        <code id="drawOut">"polygon": []</code>
+        <div class="row">
+          <button class="btn solid" id="drawCopy">Copy points</button>
+          <button class="btn" id="drawUndo">Undo last point</button>
+          <button class="btn quiet" id="drawClear">Start over</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="lower">
+      <section class="panel map" aria-label="Venue map">
+        <h2>Venue map</h2>
+        <svg id="map" role="img" aria-label="Zones and help posts"></svg>
+      </section>
+      <section class="panel pa" aria-label="Announcement">
+        <h2>Announcement</h2>
+        <div id="paBody"><p class="empty">Nothing to announce.</p></div>
+      </section>
+    </div>
+  </div>
+
+  <div class="col-side">
+    <section class="alerts" aria-live="polite">
+      <h2>Alerts</h2>
+      <div id="alertBody"></div>
+    </section>
+    <section class="zones-sec" aria-label="Zones">
+      <div class="zhead"><h2>Zones</h2><p class="legend">Each square is 1 m² of floor. Dots are people.</p></div>
+      <ol class="zlist" id="zoneList"></ol>
+      <p class="hint" id="unknownZones" hidden></p>
+    </section>
+  </div>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>

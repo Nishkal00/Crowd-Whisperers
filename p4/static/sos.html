@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ask for help</title>
+<link rel="stylesheet" href="/static/app.css">
+<style>
+  body { min-height: 100svh; display: grid; place-items: start center; padding: 28px 18px; }
+  main { width: min(440px, 100%); display: grid; gap: 22px; }
+  h1 { font-size: 30px; line-height: 1.1; margin: 0; font-weight: 800; }
+  .where { color: var(--dust); font-size: 16px; margin-top: 6px; }
+  .choices { display: grid; gap: 12px; }
+  .choice { min-height: 72px; border-radius: var(--r-lg); border: 2px solid var(--seam); background: var(--ash);
+            color: var(--bone); font-size: 19px; font-weight: 700; text-align: left; padding: 14px 18px; cursor: pointer; }
+  .choice:hover { border-color: var(--bone); }
+  .choice.first { background: var(--crit); border-color: var(--crit); color: #2B1210; }
+  .done { display: grid; gap: 10px; border: 2px solid var(--bone); border-radius: var(--r-lg); padding: 20px; }
+  .done b { font-size: 22px; }
+  .done p { color: var(--dust); }
+  .status { font-size: 18px; color: var(--bone); }
+  .note { color: var(--dust); font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>Ask for help</h1>
+    <p class="where" id="where">Loading…</p>
+  </div>
+  <div class="choices" id="choices">
+    <button class="choice first" data-kind="medical">Someone needs medical help</button>
+    <button class="choice" data-kind="crowding">It's too crowded, people are being pushed</button>
+    <button class="choice" data-kind="other">Something else is wrong</button>
+  </div>
+  <div class="done" id="done" hidden>
+    <b>The control room has your alert</b>
+    <p class="status" id="status">Finding the nearest help post.</p>
+    <p>Stay where you are if it's safe, and keep this page open.</p>
+  </div>
+  <p class="note">This sends your zone to the control room. It doesn't share your name or number.</p>
+</main>
+<script>
+const zone = decodeURIComponent(location.pathname.split('/').pop());
+fetch('/api/venue').then(r => r.json()).then(v => {
+  document.getElementById('where').textContent = `You're at ${(v.zones[zone] || {}).name || zone}, ${v.venue}.`;
+});
+document.getElementById('choices').addEventListener('click', async e => {
+  const b = e.target.closest('[data-kind]');
+  if (!b) return;
+  document.querySelectorAll('.choice').forEach(c => c.disabled = true);
+  try {
+    const r = await fetch(`/api/sos/${encodeURIComponent(zone)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: b.dataset.kind }) });
+    const { incident } = await r.json();
+    document.getElementById('choices').hidden = true;
+    document.getElementById('done').hidden = false;
+    const st = document.getElementById('status');
+    const poll = async () => {
+      const s = await (await fetch(`/api/incidents/${incident}/public`)).json();
+      st.textContent = s.status === 'accepted' ? `${s.post} is on the way.`
+        : s.status === 'resolved' ? 'Help reached you. This alert is closed.'
+        : s.status === 'unanswered' ? 'The control room is calling for help directly.'
+        : 'Finding the nearest help post.';
+      if (s.status !== 'resolved') setTimeout(poll, 3000);
+    };
+    poll();
+  } catch {
+    document.querySelectorAll('.choice').forEach(c => c.disabled = false);
+    alert('Couldn\'t reach the control room. Tell the nearest staff member.');
+  }
+});
+</script>
+</body>
+</html>
